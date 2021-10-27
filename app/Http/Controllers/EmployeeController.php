@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Employee;
 use App\Salary;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class EmployeeController extends Controller
 {
@@ -16,8 +18,8 @@ class EmployeeController extends Controller
      */
     public function index()
     {
-        $employees = Salary::get();
-        return view('employees.index', compact('employees'));
+        $salaries = Salary::get();
+        return view('employee.index', compact('salaries'));
     }
 
     public function getEmployees(Request $request, Employee $employee)
@@ -51,19 +53,34 @@ class EmployeeController extends Controller
     public function store(Request $request, Employee $employee)
     {
         $validator = Validator::make($request->all(), [
-            'category_id' => 'required',
-            'sub_category_id' => 'required',
-            'name_name' => 'required|string',
-            'price' => 'required|numeric',
-            'qty' => 'required|integer',
+            'salary_id' => 'required',
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'password' => ['required', 'string', 'min:6'],
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()->all()]);
         }
-        $employee->storeData($request->all());
+        try {
+            $employee->salary_id = $request->salary_id;
+            $employee->name = $request->name;
+            $employee->email = $request->email;
+            $employee->password = Hash::make($request->password);
+            $file = $request->file('image');
+            if (isset($file)) {
+                $destinationPath = 'images';
+                $fname = rand(1000, 9999) . "_" . $request->image->getClientOriginalName();
+                $request->image->move($destinationPath, $fname);
+                $employee->image = "$destinationPath/$fname";
+            }
+            $employee->save();
 
-        return response()->json(['success' => 'Employee added successfully']);
+            return response()->json(['success' => 'Employee added successfully']);
+        } catch (\Exception $e) {
+            return response()->json(['errors' => [$e->getMessage()]]);
+        }
     }
 
     /**
@@ -108,17 +125,14 @@ class EmployeeController extends Controller
                 </div>
                 <div class="form-group">
                     <label for="Email">Email:</label>
-                    <input type="text" class="form-control" name="email" id="editemail" value="' . $data->email . '" onkeypress="return isNumberKey(this, event);">
+                    <input type="text" class="form-control" name="email" id="editemail" value="' . $data->email . '">
                 </div>
                 <div class="form-group">
                     <label for="Password">Password:</label>
                     <input type="password" class="form-control" name="password" id="editpassword" >
                 </div>
 
-                <div class="form-group">
-                    <label for="Image">Image:</label>
-                    <input type="file" class="form-control" name="image" id="editimage" >
-                </div>';
+                ';
 
         return response()->json(['html' => $html]);
     }
@@ -134,19 +148,25 @@ class EmployeeController extends Controller
     {
         $validator = \Validator::make($request->all(), [
             'salary_id' => 'required',
-            'name' => 'required|string',
-            'email' => 'required',
-            'password' => 'required',
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', Rule::unique('employees')->ignore($id)]
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()->all()]);
         }
+        try {
+            $employee = Employee::find($id);
+            $employee->salary_id = $request->salary_id;
+            $employee->name = $request->name;
+            $employee->email = $request->email;
+            $employee->password = $request->password != '' ? Hash::make($request->password) : $employee->password;
+            $employee->save();
 
-        $product = new Product;
-        $product->updateData($id, $request->all());
-
-        return response()->json(['success' => 'Product updated successfully']);
+            return response()->json(['success' => 'Employee updated successfully']);
+        } catch (\Exception $e) {
+            return response()->json(['errors' => [$e->getMessage()]]);
+        }
     }
 
     /**

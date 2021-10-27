@@ -6,7 +6,21 @@ use Illuminate\Database\Eloquent\Model;
 
 class Employee extends Model
 {
+    protected $table = 'employees';
     protected $guarded = array();
+
+    protected $fillable = [
+        'salary_id', 'name', 'email', 'password', 'image'
+    ];
+
+    /**
+     * The attributes that should be hidden for arrays.
+     *
+     * @var array
+     */
+    protected $hidden = [
+        'password', 'remember_token',
+    ];
 
     public function salary()
     {
